@@ -10,9 +10,13 @@ public class UserOnlineManagementApplication {
 
     public static void main(String[] args) {
         //needed
+        //accessToken
+        //refresh token
         //reset password by redis
         //add sso
         //ifraim for sso
+        //add logout
+        //add api to delete token
         SpringApplication.run(UserOnlineManagementApplication.class, args);
     }
 }

@@ -1,11 +1,8 @@
 package ir.useronlinemanagement.service;
 
 
-import ir.useronlinemanagement.controller.request.UpdateRegisterUser;
+import ir.useronlinemanagement.controller.request.*;
 import ir.useronlinemanagement.controller.response.*;
-import ir.useronlinemanagement.controller.request.IsAuthorizeRequest;
-import ir.useronlinemanagement.controller.request.LoginRequest;
-import ir.useronlinemanagement.controller.request.RegisterRequest;
 
 public interface UserService {
     RegisterResponse registerByAdmin(RegisterRequest request);
@@ -14,5 +11,6 @@ public interface UserService {
     Boolean isAuthorized(IsAuthorizeRequest request);
     LoginResponse login(LoginRequest request);
     UserDetailsRes getDetails();
-
+    ForgetPasswordRes forgetPassword(String email);
+    ResetPasswordRes resetPassword(ResetPasswordRequest request);
 }
