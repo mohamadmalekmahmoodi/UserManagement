@@ -1,25 +1,12 @@
-package ir.useronlinemanagement.controller.response;
+package ir.useronlinemanagement.controller.request;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @AllArgsConstructor
 @NoArgsConstructor
-//@Data
-//@Builder
-public class LoginResponse {
-    private String token;
+public class RefreshTokenRequest {
     private String refreshToken;
-
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
 
     public String getRefreshToken() {
         return refreshToken;

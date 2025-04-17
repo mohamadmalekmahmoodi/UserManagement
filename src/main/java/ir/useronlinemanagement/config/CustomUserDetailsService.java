@@ -11,7 +11,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository repository;
 
-    // Constructor برای مقداردهی متغیر repository
     public CustomUserDetailsService(UserRepository repository) {
         this.repository = repository;
     }

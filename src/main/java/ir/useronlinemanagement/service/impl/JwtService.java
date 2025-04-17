@@ -13,6 +13,7 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -31,6 +32,10 @@ public class JwtService {
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
+    }
+
+    public String generateRefreshToken(UserDetails userDetails) {
+        return UUID.randomUUID().toString(); // برای refresh token یه string ساده می‌سازیم
     }
 
     private Claims extractAllClaims(String token) {

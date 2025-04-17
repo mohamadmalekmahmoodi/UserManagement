@@ -1,19 +1,22 @@
 package ir.useronlinemanagement.service.impl;
 
-import ir.useronlinemanagement.controller.request.IsAuthorizeRequest;
-import ir.useronlinemanagement.controller.request.LoginRequest;
-import ir.useronlinemanagement.controller.request.RegisterRequest;
-import ir.useronlinemanagement.controller.request.UpdateRegisterUser;
+import com.sun.security.auth.UserPrincipal;
+import ir.useronlinemanagement.config.RedisConfig;
+import ir.useronlinemanagement.controller.request.*;
 import ir.useronlinemanagement.controller.response.*;
 import ir.useronlinemanagement.exception.ResponseException;
+import ir.useronlinemanagement.model.RefreshToken;
 import ir.useronlinemanagement.model.Role;
 import ir.useronlinemanagement.model.User;
+import ir.useronlinemanagement.otp.OtpService;
 import ir.useronlinemanagement.repository.RoleRepository;
 import ir.useronlinemanagement.repository.UserRepository;
+import ir.useronlinemanagement.service.RefreshTokenService;
 import ir.useronlinemanagement.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,18 +36,24 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final JwtService jwtService;
-    private final UtilService utilService;
+private final StringRedisTemplate stringRedisTemplate;
+private final RefreshTokenService refreshTokenService;
+private final UtilService utilService;
     private final UserDetailsService userDetailsService;
     private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
+    private final OtpService otpService;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, UtilService utilService, UserDetailsService userDetailsService) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, RefreshTokenService refreshTokenService, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.refreshTokenService = refreshTokenService;
         this.utilService = utilService;
         this.userDetailsService = userDetailsService;
+        this.otpService = otpService;
     }
 
     @Override
@@ -120,7 +129,6 @@ public class UserServiceImpl implements UserService {
         user.setLastPasswordReset(Instant.now());
         userRepository.save(user);
         return new UpdateUserResponse("کاربر به روز رسانی شد");
-
     }
 
     @Override
@@ -135,12 +143,30 @@ public class UserServiceImpl implements UserService {
         if (userDetails == null || !passwordEncoder.matches(request.getPassword(), userDetails.getPassword())) {
             throw new IllegalArgumentException("یوزرنیم یا پسورد اشتباه است");
         }
-
         User user = optionalUser.get();
         updateLastLogin(user);
         String token = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
-        return buildLoginResponse(token);
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setRefreshToken(refreshToken);
+        return response;
+    }
+
+    public RefreshTokenResponse refreshAccessToken(String refreshToken) {
+        RefreshToken token = refreshTokenService.findByToken(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+
+        if (token.getExpiryDate().isBefore(Instant.now())) {
+            throw new RuntimeException("Refresh token expired");
+        }
+        User user = token.getUser();
+        String newAccessToken = jwtService.generateToken(user);
+        RefreshTokenResponse response = new RefreshTokenResponse();
+        response.setAccess_token(newAccessToken);
+        response.setRefresh_token(refreshToken);
+        return response;
     }
 
 
@@ -160,6 +186,7 @@ public class UserServiceImpl implements UserService {
 
         return userDetailsRes;
     }
+
 
     @Override
     public Boolean isAuthorized(IsAuthorizeRequest request) {
@@ -189,9 +216,37 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
-    private LoginResponse buildLoginResponse(String token) {
+    private LoginResponse buildLoginResponse(String token,String refreshToken) {
         LoginResponse response = new LoginResponse();
         response.setToken(token);
+        response.setRefreshToken(refreshToken);
         return response;
+    }
+
+    @Override
+    public ForgetPasswordRes forgetPassword(String email) {
+        userRepository.findByEmail(email).orElseThrow(()-> new ResponseException("حساب کاربری یافت نشد!",404));
+        otpService.generateOtp(email);
+//        return new ForgetPasswordRes("رمز یکبارمصرف جنریت شد");
+        ForgetPasswordRes f = new ForgetPasswordRes();
+        f.setMessage("رمز یکبارمصرف جنریت شد");
+        return f;
+    }
+
+    @Override
+    public ResetPasswordRes resetPassword(ResetPasswordRequest request) {
+        String verifiedKey = "otp:verified:" + request.getEmail();
+        if (!Boolean.TRUE.equals(stringRedisTemplate.hasKey(verifiedKey))) {
+            throw new ResponseException("باید رمز یکبار مصرف تایید شود", 403);
+        }
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResponseException("شما ابتدا باید ثبت نام کنید!", 404));
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setLastPasswordReset(Instant.now());
+        userRepository.save(user);
+//        return new ResetPasswordRes("پسورد شما به روز رسانی شد");
+        ResetPasswordRes f = new ResetPasswordRes();
+        f.setMessage("پسورد شما به روز رسانی شد");
+        return f;
     }
 }
