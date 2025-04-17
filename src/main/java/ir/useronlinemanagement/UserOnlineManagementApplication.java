@@ -10,7 +10,7 @@ public class UserOnlineManagementApplication {
 
     public static void main(String[] args) {
         //needed
-        //accessToken
+        //accessToken done
         //refresh token
         //reset password by redis
         //add sso

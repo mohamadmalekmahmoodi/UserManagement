@@ -13,4 +13,5 @@ public interface UserService {
     UserDetailsRes getDetails();
     ForgetPasswordRes forgetPassword(String email);
     ResetPasswordRes resetPassword(ResetPasswordRequest request);
+    RefreshTokenResponse refreshAccessToken(String refreshToken);
 }

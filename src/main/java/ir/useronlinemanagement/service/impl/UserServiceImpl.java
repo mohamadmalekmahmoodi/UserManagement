@@ -1,14 +1,17 @@
 package ir.useronlinemanagement.service.impl;
 
+import com.sun.security.auth.UserPrincipal;
 import ir.useronlinemanagement.config.RedisConfig;
 import ir.useronlinemanagement.controller.request.*;
 import ir.useronlinemanagement.controller.response.*;
 import ir.useronlinemanagement.exception.ResponseException;
+import ir.useronlinemanagement.model.RefreshToken;
 import ir.useronlinemanagement.model.Role;
 import ir.useronlinemanagement.model.User;
 import ir.useronlinemanagement.otp.OtpService;
 import ir.useronlinemanagement.repository.RoleRepository;
 import ir.useronlinemanagement.repository.UserRepository;
+import ir.useronlinemanagement.service.RefreshTokenService;
 import ir.useronlinemanagement.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,18 +37,20 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final JwtService jwtService;
 private final StringRedisTemplate stringRedisTemplate;
+private final RefreshTokenService refreshTokenService;
 private final UtilService utilService;
     private final UserDetailsService userDetailsService;
     private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
     private final OtpService otpService;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, RefreshTokenService refreshTokenService, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.refreshTokenService = refreshTokenService;
         this.utilService = utilService;
         this.userDetailsService = userDetailsService;
         this.otpService = otpService;
@@ -124,7 +129,6 @@ private final UtilService utilService;
         user.setLastPasswordReset(Instant.now());
         userRepository.save(user);
         return new UpdateUserResponse("کاربر به روز رسانی شد");
-
     }
 
     @Override
@@ -139,12 +143,30 @@ private final UtilService utilService;
         if (userDetails == null || !passwordEncoder.matches(request.getPassword(), userDetails.getPassword())) {
             throw new IllegalArgumentException("یوزرنیم یا پسورد اشتباه است");
         }
-
         User user = optionalUser.get();
         updateLastLogin(user);
         String token = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
-        return buildLoginResponse(token);
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setRefreshToken(refreshToken);
+        return response;
+    }
+
+    public RefreshTokenResponse refreshAccessToken(String refreshToken) {
+        RefreshToken token = refreshTokenService.findByToken(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+
+        if (token.getExpiryDate().isBefore(Instant.now())) {
+            throw new RuntimeException("Refresh token expired");
+        }
+        User user = token.getUser();
+        String newAccessToken = jwtService.generateToken(user);
+        RefreshTokenResponse response = new RefreshTokenResponse();
+        response.setAccess_token(newAccessToken);
+        response.setRefresh_token(refreshToken);
+        return response;
     }
 
 
@@ -194,9 +216,10 @@ private final UtilService utilService;
         userRepository.save(user);
     }
 
-    private LoginResponse buildLoginResponse(String token) {
+    private LoginResponse buildLoginResponse(String token,String refreshToken) {
         LoginResponse response = new LoginResponse();
         response.setToken(token);
+        response.setRefreshToken(refreshToken);
         return response;
     }
 

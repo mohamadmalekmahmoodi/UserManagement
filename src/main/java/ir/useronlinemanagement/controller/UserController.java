@@ -6,6 +6,7 @@ import ir.useronlinemanagement.controller.request.*;
 import ir.useronlinemanagement.controller.response.*;
 import ir.useronlinemanagement.exception.ResponseException;
 import ir.useronlinemanagement.otp.OtpService;
+import ir.useronlinemanagement.service.RefreshTokenService;
 import ir.useronlinemanagement.service.UserService;
 import ir.useronlinemanagement.service.impl.JwtService;
 import jakarta.validation.Valid;
@@ -93,6 +94,12 @@ public class UserController {
     public ResponseEntity<ForgetPasswordRes> forgetPassword(@RequestBody String email) {
         ForgetPasswordRes res = userService.forgetPassword(email);
         return ResponseEntity.ok(res);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<RefreshTokenResponse> refreshAccessToken(@RequestBody RefreshTokenRequest request) {
+        RefreshTokenResponse response = userService.refreshAccessToken(request.getRefreshToken());
+        return ResponseEntity.ok(response);
     }
 }
 
