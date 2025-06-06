@@ -12,6 +12,9 @@ public class UserOnlineManagementApplication {
         //needed
         //accessToken done
         //refresh token
+        //rate limit
+        //check if ip is for the person in redis while register
+        //add event handling to say welcome to user after register
         //reset password by redis
         //add sso
         //ifraim for sso

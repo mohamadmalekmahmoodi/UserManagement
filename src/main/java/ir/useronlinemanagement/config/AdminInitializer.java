@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 
 @Component
 public class AdminInitializer implements CommandLineRunner {
@@ -34,7 +35,7 @@ public class AdminInitializer implements CommandLineRunner {
             User admin = new User();
             admin.setUsername("admin_panel");
             admin.setPassword(passwordEncoder.encode("admin_panel"));
-            admin.setRole(adminRole);
+            admin.setRoles(List.of(adminRole));
             admin.setEmail("admin@mail");
             admin.setPhone("09123456783");
             admin.setDeleted(false);
@@ -46,5 +47,6 @@ public class AdminInitializer implements CommandLineRunner {
             LOGGER.info("default admin panel has been created successfully");
         }
     }
+
 }
 

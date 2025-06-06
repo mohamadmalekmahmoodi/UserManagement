@@ -15,6 +15,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -47,10 +48,15 @@ public class User implements UserDetails {
     @Column(name = "phone")
     private String phone;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id")
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_role",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
     @JsonBackReference
-    private Role role;
+    private List<Role> roles = new ArrayList<>();
+
 
     @Column(name = "last_login")
     private Instant lastLogin;
@@ -70,7 +76,6 @@ public class User implements UserDetails {
     @Column(name = "created_by", updatable = false)
     private String createdBy;
 
-    // ✅ ثبت کاربر ویرایش‌کننده
     @LastModifiedBy
     @Column(name = "updated_by")
     private String updatedBy;
@@ -82,13 +87,17 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (role == null || role.getPermissions() == null)
-            return List.of(); // Return empty list if no permissions
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
 
-        return role.getPermissions().stream()
+        return roles.stream()
+                .filter(role -> role.getPermissions() != null)
+                .flatMap(role -> role.getPermissions().stream())
                 .map(permission -> (GrantedAuthority) permission::getName)
-                .toList(); // Assuming permissions have a 'getName()' method
+                .toList();
     }
+
 
     @Override
     public String getPassword() {
@@ -152,12 +161,12 @@ public class User implements UserDetails {
         this.phone = phone;
     }
 
-    public Role getRole() {
-        return role;
+    public List<Role> getRoles() {
+        return roles;
     }
 
-    public void setRole(Role role) {
-        this.role = role;
+    public void setRoles(List<Role> roles) {
+        this.roles = roles;
     }
 
     public Instant getLastLogin() {

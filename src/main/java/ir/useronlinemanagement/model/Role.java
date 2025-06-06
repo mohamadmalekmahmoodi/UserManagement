@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -21,9 +22,10 @@ public class Role {
     @Column(name = "is_deleted")
     private Boolean isDeleted;
 
-    @OneToMany(mappedBy = "role")
-    @JsonManagedReference  // جلوگیری از ارجاع دایره‌ای به User
-    private List<User> users;
+    @ManyToMany(mappedBy = "roles")
+    @JsonManagedReference
+    private List<User> users = new ArrayList<>();
+
 
     @ManyToMany(fetch = FetchType.EAGER) // Many-to-many relationship with Permission
     @JoinTable(
