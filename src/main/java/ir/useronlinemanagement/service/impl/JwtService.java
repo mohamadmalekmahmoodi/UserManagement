@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import ir.useronlinemanagement.model.Role;
 import ir.useronlinemanagement.model.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -66,7 +67,7 @@ public class JwtService {
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", user.getUsername());
-        claims.put("role", "ROLE_" + user.getRole().getName()); // فرض بر این که role یک شیء از نوع Role است
+        claims.put("role", "ROLE_" + user.getRoles().stream().map(Role::getName)); // فرض بر این که role یک شیء از نوع Role است
         claims.put("email", user.getEmail());
         claims.put("firstName", user.getFirstName());
         claims.put("lastName", user.getLastName());
