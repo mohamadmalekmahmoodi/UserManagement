@@ -20,6 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -31,9 +32,9 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final JwtService jwtService;
-private final StringRedisTemplate stringRedisTemplate;
-private final RefreshTokenService refreshTokenService;
-private final UtilService utilService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final RefreshTokenService refreshTokenService;
+    private final UtilService utilService;
     private final UserDetailsService userDetailsService;
     private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
     private final OtpService otpService;
@@ -72,12 +73,13 @@ private final UtilService utilService;
 
             userRepository.save(user);
             String token = jwtService.generateToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user);
             RegisterResponse response = new RegisterResponse();
             response.setToken(token);
+            response.setRefreshToken(refreshToken);
             return response;
         }
     }
-
 
 
     @Override
@@ -151,6 +153,7 @@ private final UtilService utilService;
     }
 
     public RefreshTokenResponse refreshAccessToken(String refreshToken) {
+        // رفرش توکن تا 7 روز تاریخ دارد اگه گذشته بود دوباره باید لاگین کند
         RefreshToken token = refreshTokenService.findByToken(refreshToken)
                 .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
 
@@ -216,7 +219,7 @@ private final UtilService utilService;
         userRepository.save(user);
     }
 
-    private LoginResponse buildLoginResponse(String token,String refreshToken) {
+    private LoginResponse buildLoginResponse(String token, String refreshToken) {
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setRefreshToken(refreshToken);
@@ -225,7 +228,7 @@ private final UtilService utilService;
 
     @Override
     public ForgetPasswordRes forgetPassword(String email) {
-        userRepository.findByEmail(email).orElseThrow(()-> new ResponseException("حساب کاربری یافت نشد!",404));
+        userRepository.findByEmail(email).orElseThrow(() -> new ResponseException("حساب کاربری یافت نشد!", 404));
         otpService.generateOtp(email);
 //        return new ForgetPasswordRes("رمز یکبارمصرف جنریت شد");
         ForgetPasswordRes f = new ForgetPasswordRes();

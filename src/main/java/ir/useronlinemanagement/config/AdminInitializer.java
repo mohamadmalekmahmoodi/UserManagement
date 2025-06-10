@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -30,23 +31,34 @@ public class AdminInitializer implements CommandLineRunner {
     public void run(String... args) {
         if (userRepository.findByUsername("admin_panel").isEmpty()) {
             Role adminRole = roleRepository.findByName("ADMIN")
-                    .orElseGet(() -> roleRepository.save(new Role("ADMIN")));
+                    .orElseGet(() -> {
+                        Role role = new Role("ADMIN");
+                        role.setUsers(new ArrayList<>());
+                        return roleRepository.save(role);
+                    });
 
             User admin = new User();
             admin.setUsername("admin_panel");
             admin.setPassword(passwordEncoder.encode("admin_panel"));
-            admin.setRoles(List.of(adminRole));
             admin.setEmail("admin@mail");
             admin.setPhone("09123456783");
             admin.setDeleted(false);
             admin.setFirstName("mohammad");
             admin.setLastName("maleki");
             admin.setCreatedAt(Instant.now());
-            userRepository.save(admin);
+
+            // اضافه کردن نقش به کاربر
+            admin.setRoles(List.of(adminRole));
+
+            // اضافه کردن کاربر به نقش
+            adminRole.getUsers().add(admin);
+
+            userRepository.save(admin); // چون رابطه ManyToMany هست، این باید کافیه باشه
 
             LOGGER.info("default admin panel has been created successfully");
         }
     }
+
 
 }
 

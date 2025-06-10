@@ -20,4 +20,8 @@ public class ResponseException extends RuntimeException{
     public ResponseException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
+
+    public Integer getErrorCode() {
+        return errorCode;
+    }
 }
