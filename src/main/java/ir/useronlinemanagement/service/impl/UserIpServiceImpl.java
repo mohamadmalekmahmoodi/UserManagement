@@ -55,9 +55,7 @@ public class UserIpServiceImpl implements UserIpService {
 
     @Override
     public boolean isIpAllowed(User user, String ipAddress) {
-        // لیست IP های فعال کاربر رو می‌گیره
         List<UserIp> allowedIps = userIpRepository.findByUserAndStatusTrue(user);
-        // چک می‌کنه IP درخواست تو این لیست هست یا نه
         return allowedIps.stream()
                 .anyMatch(userIp -> userIp.getIpAddress().equals(ipAddress));
     }

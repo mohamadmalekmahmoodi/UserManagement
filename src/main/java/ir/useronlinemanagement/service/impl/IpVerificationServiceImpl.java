@@ -4,6 +4,7 @@ import ir.useronlinemanagement.model.IpVerification;
 import ir.useronlinemanagement.model.User;
 import ir.useronlinemanagement.model.UserIp;
 import ir.useronlinemanagement.repository.IpVerificationRepository;
+import ir.useronlinemanagement.repository.UserIpRepository;
 import ir.useronlinemanagement.repository.UserRepository;
 import ir.useronlinemanagement.service.IpVerificationService;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +26,14 @@ public class IpVerificationServiceImpl implements IpVerificationService {
     private final IpVerificationRepository repository;
     private final JavaMailSender mailSender;
     private final UserRepository userRepository;
+    private final UserIpRepository userIpRepository;
 
     @Autowired
-    public IpVerificationServiceImpl(IpVerificationRepository repository, JavaMailSender mailSender, UserRepository userRepository) {
+    public IpVerificationServiceImpl(IpVerificationRepository repository, JavaMailSender mailSender, UserRepository userRepository, UserIpRepository userIpRepository, UserIpRepository userIpRepository1) {
         this.repository = repository;
         this.mailSender = mailSender;
         this.userRepository = userRepository;
+        this.userIpRepository = userIpRepository1;
     }
 
     public void generateAndSendOtp(User user, String ipAddress) {
@@ -52,27 +55,26 @@ public class IpVerificationServiceImpl implements IpVerificationService {
         mailSender.send(message);
     }
 
-    public boolean verify(Long userId, String ip, String code) {
-        User user = userRepository.findById(userId).orElse(null);
-        Optional<IpVerification> optional = repository.findByUserAndIpAddressAndOtpCode(user, ip, code);
-        if (optional.isEmpty()) return false;
+    public boolean verify(String code,String ip) {
+//        User user = userRepository.findById(userId).orElse(null);
+        IpVerification optional = repository.findByIpAddressAndOtpCode(ip, code).orElse(null);
 
-        IpVerification verification = optional.get();
-        if (verification.getExpiration().isBefore(Instant.now())) {
+        if (optional.getExpiration().isBefore(Instant.now())) {
             return false; // منقضی شده
         }
 
         // فعال‌سازی IP در دیتابیس
-        UserIp ipEntity = user.getUserIps().stream()
-                .filter(i -> i.getIpAddress().equals(ip))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("IP not found"));
+        UserIp ipEntity = userIpRepository.findFirstByIpAddress(ip).orElse(null);
+//                user.getUserIps().stream()
+//                .filter(i -> i.getIpAddress().equals(ip))
+//                .findFirst()
+//                .orElseThrow(() -> new RuntimeException("IP not found"));
 
         ipEntity.setStatus(true);
-        verification.getUser().getUserIps().removeIf(i -> i.getIpAddress().equals(ip)); // به‌روزرسانی local
-        verification.getUser().getUserIps().add(ipEntity); // مجدد اضافه
+        optional.getUser().getUserIps().removeIf(i -> i.getIpAddress().equals(ip)); // به‌روزرسانی local
+        optional.getUser().getUserIps().add(ipEntity); // مجدد اضافه
 
-        repository.delete(verification); // یک بار مصرف
+        repository.delete(optional); // یک بار مصرف
         return true;
     }
 

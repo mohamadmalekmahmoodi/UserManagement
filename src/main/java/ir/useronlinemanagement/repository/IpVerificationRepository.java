@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface IpVerificationRepository extends JpaRepository<IpVerification, Long> {
-    Optional<IpVerification> findByUserAndIpAddressAndOtpCode(User user, String ip, String code);
+    Optional<IpVerification> findByIpAddressAndOtpCode(String ip, String code);
 }
 

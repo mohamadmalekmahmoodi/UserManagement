@@ -66,7 +66,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
             if (jwtService.isTokenValid(jwt, userDetails)) {
@@ -76,7 +75,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String clientIp = request.getRemoteAddr();
                 if (!userIpService.isIpAllowed(user, clientIp)) {
                     response.setStatus(HttpStatus.FORBIDDEN.value());
-                    response.getWriter().write("IP not allowed for this user");
+                    response.getWriter().write("لطفا کد یکبار مصرف را وارد کنید , نیاز به تایید دارد");
                     return;
                 }
 
