@@ -5,11 +5,17 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import ir.useronlinemanagement.model.RefreshToken;
+import ir.useronlinemanagement.model.Role;
 import ir.useronlinemanagement.model.User;
+import ir.useronlinemanagement.repository.RefreshTokenRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +26,12 @@ import java.util.function.Function;
 public class JwtService {
 
     private static final String SECRET_KEY = "tXs3U24Hsl9xZaTYuOXyGyZkCm5sR4xGTolH7Z3Fb0k=";
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    public JwtService(RefreshTokenRepository refreshTokenRepository) {
+        this.refreshTokenRepository = refreshTokenRepository;
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -34,9 +46,15 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    public String generateRefreshToken(UserDetails userDetails) {
-        return UUID.randomUUID().toString(); // برای refresh token یه string ساده می‌سازیم
+    public String generateRefreshToken(User user) {
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(Instant.now().plus(7, ChronoUnit.DAYS));
+        RefreshToken token = refreshTokenRepository.save(refreshToken);
+        return token.getToken();
     }
+
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser().setSigningKey(getSignInKey())
@@ -61,12 +79,11 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
-        // تبدیل UserDetails به User (در صورتی که userDetails یک نمونه از User باشه، نیازی به تبدیل نیست)
-        User user = (User) userDetails; // اگر کلاس UserDetails شما از User ارث‌بری کرده باشد.
+        User user = (User) userDetails;
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", user.getUsername());
-        claims.put("role", "ROLE_" + user.getRole().getName()); // فرض بر این که role یک شیء از نوع Role است
+        claims.put("roles", user.getRoles().stream().map(Role::getName).toList());
         claims.put("email", user.getEmail());
         claims.put("firstName", user.getFirstName());
         claims.put("lastName", user.getLastName());
@@ -86,6 +103,18 @@ public class JwtService {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
+
+    public RefreshToken verifyRefreshToken(String token) {
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("توکن نامعتبر است"));
+
+        if (refreshToken.getExpiryDate().isBefore(Instant.now())) {
+            throw new RuntimeException("توکن منقضی شده");
+        }
+
+        return refreshToken;
+    }
+
 
     public Boolean isTokenValid(String token) {
         if (token == null || token.trim().isEmpty()) {

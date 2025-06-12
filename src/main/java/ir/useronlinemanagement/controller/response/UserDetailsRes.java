@@ -4,6 +4,8 @@ import ir.useronlinemanagement.model.Role;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserDetailsRes {
@@ -12,7 +14,7 @@ public class UserDetailsRes {
     private String email;
     private String phone;
     private String username;
-    private String roleName;
+    private List<String> roleName;
 
 
     public String getFirstName() {
@@ -55,11 +57,11 @@ public class UserDetailsRes {
         this.username = username;
     }
 
-    public String getRoleName() {
+    public List<String> getRoleName() {
         return roleName;
     }
 
-    public void setRoleName(String roleName) {
+    public void setRoleName(List<String> roleName) {
         this.roleName = roleName;
     }
 }
