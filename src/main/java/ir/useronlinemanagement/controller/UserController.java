@@ -9,6 +9,7 @@ import ir.useronlinemanagement.otp.OtpService;
 import ir.useronlinemanagement.service.RefreshTokenService;
 import ir.useronlinemanagement.service.UserService;
 import ir.useronlinemanagement.service.impl.JwtService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -46,8 +47,8 @@ public class UserController {
 
     @PostMapping("/login")
     @Operation(summary = "ورود کاربر")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-        return ResponseEntity.ok(userService.login(request));
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+        return ResponseEntity.ok(userService.login(request,servletRequest));
     }
 
     @GetMapping("/current/details")

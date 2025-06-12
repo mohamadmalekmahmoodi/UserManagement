@@ -48,7 +48,7 @@ public class User implements UserDetails {
     @Column(name = "phone")
     private String phone;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_role",
             joinColumns = @JoinColumn(name = "user_id"),
@@ -84,6 +84,9 @@ public class User implements UserDetails {
     //for soft delete
     @Column(name = "is_deleted")
     private Boolean  isDeleted;
+
+    @OneToMany
+    private List<UserIp> userIps;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -239,5 +242,13 @@ public class User implements UserDetails {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    public List<UserIp> getUserIps() {
+        return userIps;
+    }
+
+    public void setUserIps(List<UserIp> userIps) {
+        this.userIps = userIps;
     }
 }

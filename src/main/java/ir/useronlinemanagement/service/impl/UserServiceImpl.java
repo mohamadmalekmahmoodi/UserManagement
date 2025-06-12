@@ -10,7 +10,10 @@ import ir.useronlinemanagement.otp.OtpService;
 import ir.useronlinemanagement.repository.RoleRepository;
 import ir.useronlinemanagement.repository.UserRepository;
 import ir.useronlinemanagement.service.RefreshTokenService;
+import ir.useronlinemanagement.service.UserIpService;
 import ir.useronlinemanagement.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,19 +37,21 @@ public class UserServiceImpl implements UserService {
     private final JwtService jwtService;
     private final StringRedisTemplate stringRedisTemplate;
     private final RefreshTokenService refreshTokenService;
+    private final UserIpService userIpService;
     private final UtilService utilService;
     private final UserDetailsService userDetailsService;
     private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
     private final OtpService otpService;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, RefreshTokenService refreshTokenService, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, RefreshTokenService refreshTokenService, UserIpService userIpService, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.stringRedisTemplate = stringRedisTemplate;
         this.refreshTokenService = refreshTokenService;
+        this.userIpService = userIpService;
         this.utilService = utilService;
         this.userDetailsService = userDetailsService;
         this.otpService = otpService;
@@ -130,7 +135,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, HttpServletRequest servletRequest) {
         Optional<User> optionalUser = userRepository.findByUsername(request.getUsername());
 
         if (optionalUser.isEmpty()) {
@@ -143,6 +148,11 @@ public class UserServiceImpl implements UserService {
         }
         User user = optionalUser.get();
         updateLastLogin(user);
+
+        //getting ip while logging
+        String clientIp = getClientIpFromRequest(servletRequest); // باید پیاده‌سازی‌اش کنی یا بگیری از پارامتر
+        userIpService.registerUserIp(user.getId(), clientIp);
+
         String token = jwtService.generateToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
@@ -170,6 +180,7 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
+    @Transactional
     public UserDetailsRes getDetails() {
         User user = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> new ResponseException("شخصی با این نام یافت نشد", 404));
@@ -252,4 +263,30 @@ public class UserServiceImpl implements UserService {
         f.setMessage("پسورد شما به روز رسانی شد");
         return f;
     }
+
+
+    public String getClientIpFromRequest(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // اگر لیست IP بود، اولین IP واقعی کلاینت رو می‌گیریم
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
+    }
+
 }

@@ -1,6 +1,9 @@
 package ir.useronlinemanagement.filter;
 
 import io.micrometer.common.lang.NonNull;
+import ir.useronlinemanagement.model.User;
+import ir.useronlinemanagement.repository.UserRepository;
+import ir.useronlinemanagement.service.UserIpService;
 import ir.useronlinemanagement.service.impl.JwtService;
 import ir.useronlinemanagement.util.RedisRateLimiterService;
 import jakarta.servlet.FilterChain;
@@ -26,12 +29,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final RedisRateLimiterService rateLimiterService;
+    private final UserRepository userRepository;
+    private final UserIpService userIpService;
+
 
     @Autowired
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService, RedisRateLimiterService rateLimiterService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService, RedisRateLimiterService rateLimiterService, UserRepository userRepository, UserIpService userIpService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.rateLimiterService = rateLimiterService;
+        this.userRepository = userRepository;
+        this.userIpService = userIpService;
     }
 
     @Override
@@ -58,9 +66,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
             if (jwtService.isTokenValid(jwt, userDetails)) {
+
+                //checking ip
+                User user = userRepository.findByUsername(username).orElse(null);
+                String clientIp = request.getRemoteAddr();
+                if (!userIpService.isIpAllowed(user, clientIp)) {
+                    response.setStatus(HttpStatus.FORBIDDEN.value());
+                    response.getWriter().write("IP not allowed for this user");
+                    return;
+                }
+
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, jwt, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
