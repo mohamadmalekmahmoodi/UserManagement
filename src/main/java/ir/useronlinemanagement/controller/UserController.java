@@ -92,7 +92,7 @@ public class UserController {
     }
 
     @PostMapping("/forget-password")
-    public ResponseEntity<ForgetPasswordRes> forgetPassword(@RequestBody String email) {
+    public ResponseEntity<ForgetPasswordRes> forgetPassword(@RequestParam String email) {
         ForgetPasswordRes res = userService.forgetPassword(email);
         return ResponseEntity.ok(res);
     }
@@ -101,6 +101,15 @@ public class UserController {
     public ResponseEntity<RefreshTokenResponse> refreshAccessToken(@RequestBody RefreshTokenRequest request) {
         RefreshTokenResponse response = userService.refreshAccessToken(request.getRefreshToken());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Response> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            ResponseEntity.badRequest().body("توکن نامعتبر است");
+        }
+        Response logout = userService.logout(authHeader);
+        return ResponseEntity.ok(logout);
     }
 }
 

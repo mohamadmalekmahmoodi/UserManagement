@@ -13,7 +13,7 @@ public class OtpServiceImpl implements OtpService {
     private final StringRedisTemplate redisTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
     private static final String OTP_KEY_PREFIX = "otp:";
-    private static final String OTP_THROTTLE_PREFIX = "otp_throttle_";
+    private static final String OTP_THROTTLE_PREFIX = "otp:verified:";
 
 
     @Autowired

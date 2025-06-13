@@ -5,18 +5,23 @@ import ir.useronlinemanagement.controller.response.*;
 import ir.useronlinemanagement.exception.ResponseException;
 import ir.useronlinemanagement.model.RefreshToken;
 import ir.useronlinemanagement.model.Role;
+import ir.useronlinemanagement.model.TokenBlockList;
 import ir.useronlinemanagement.model.User;
 import ir.useronlinemanagement.otp.OtpService;
 import ir.useronlinemanagement.repository.RoleRepository;
+import ir.useronlinemanagement.repository.TokenBlockListRepository;
 import ir.useronlinemanagement.repository.UserRepository;
 import ir.useronlinemanagement.service.RefreshTokenService;
 import ir.useronlinemanagement.service.UserIpService;
 import ir.useronlinemanagement.service.UserService;
+import ir.useronlinemanagement.util.UserRegisteredEvent;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,9 +48,11 @@ public class UserServiceImpl implements UserService {
     private final UserDetailsService userDetailsService;
     private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
     private final OtpService otpService;
+    private final TokenBlockListRepository tokenBlockListRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, RefreshTokenService refreshTokenService, UserIpService userIpService, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleRepository roleRepository, JwtService jwtService, StringRedisTemplate stringRedisTemplate, RefreshTokenService refreshTokenService, UserIpService userIpService, UtilService utilService, UserDetailsService userDetailsService, OtpService otpService, TokenBlockListRepository tokenBlockListRepository, ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
@@ -55,6 +63,8 @@ public class UserServiceImpl implements UserService {
         this.utilService = utilService;
         this.userDetailsService = userDetailsService;
         this.otpService = otpService;
+        this.tokenBlockListRepository = tokenBlockListRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -77,6 +87,9 @@ public class UserServiceImpl implements UserService {
             user.setLastName(request.getLastName());
 
             userRepository.save(user);
+
+            eventPublisher.publishEvent(new UserRegisteredEvent(this, user));
+
             String token = jwtService.generateToken(user);
             String refreshToken = jwtService.generateRefreshToken(user);
             RegisterResponse response = new RegisterResponse();
@@ -247,6 +260,7 @@ public class UserServiceImpl implements UserService {
         return f;
     }
 
+
     @Override
     public ResetPasswordRes resetPassword(ResetPasswordRequest request) {
         String verifiedKey = "otp:verified:" + request.getEmail();
@@ -258,11 +272,32 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setLastPasswordReset(Instant.now());
         userRepository.save(user);
-//        return new ResetPasswordRes("پسورد شما به روز رسانی شد");
+
+        stringRedisTemplate.delete(verifiedKey);
+
         ResetPasswordRes f = new ResetPasswordRes();
         f.setMessage("پسورد شما به روز رسانی شد");
         return f;
     }
+
+    public Response logout(String token) {
+        Date expiration = jwtService.extractExpiration(token);
+
+        TokenBlockList tokenBlockList = new TokenBlockList();
+        tokenBlockList.setToken(token);
+        tokenBlockList.setBlockedAt(Instant.now());
+        tokenBlockList.setExpiresAt(expiration.toInstant());
+
+        tokenBlockListRepository.save(tokenBlockList);
+
+        Response response = new Response();
+        response.setMessage("با موفقیت خارج شدید");
+        response.setErrorCode(200);
+        return response;
+    }
+
+
+
 
 
     public String getClientIpFromRequest(HttpServletRequest request) {
